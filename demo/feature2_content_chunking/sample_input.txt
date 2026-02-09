@@ -1,0 +1,2 @@
+Neural networks are powerful models used in deep learning.
+They consist of layers of neurons and are trained using backpropagation.
