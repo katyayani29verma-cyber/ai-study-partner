@@ -1,0 +1,6 @@
+# Core Database Dependencies
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+
+# Optional: PostgreSQL support (install separately if needed)
+# psycopg2-binary>=2.9.0

@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (Staging)
+  db:
+    image: postgres:15-alpine
+    container_name: study_partner_staging_db
+    environment:
+      POSTGRES_DB: study_partner_staging
+      POSTGRES_USER: study_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-staging_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U study_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - study_partner_staging_network
+
+  # Redis Cache & Rate Limiting (Staging)
+  redis:
+    image: redis:7-alpine
+    container_name: study_partner_staging_redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-staging_redis}
+    volumes:
+      - redis_staging_data:/data
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - study_partner_staging_network
+
+  # FastAPI Application (Staging)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: study_partner_staging_api
+    environment:
+      # Database
+      DATABASE_URL: postgresql://study_user:${DB_PASSWORD:-staging_password}@db:5432/study_partner_staging
+      
+      # Security
+      SECRET_KEY: ${SECRET_KEY:-staging-secret-key-min-32-chars-here}
+      MASTER_KEY: ${MASTER_KEY:-staging-master-key-min-32-chars-here}
+      
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD:-staging_redis}@redis:6379
+      
+      # CORS
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3001,http://staging.yourapp.com}
+      
+      # Logging
+      LOG_LEVEL: DEBUG
+      
+      # Python
+      PYTHONUNBUFFERED: 1
+      PYTHONIOENCODING: utf-8
+    
+    ports:
+      - "8001:8000"
+    
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    volumes:
+      - ./logs/staging:/app/logs
+    
+    restart: unless-stopped
+    networks:
+      - study_partner_staging_network
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy (Staging)
+  nginx:
+    image: nginx:alpine
+    container_name: study_partner_staging_nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./logs/nginx/staging:/var/log/nginx
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - study_partner_staging_network
+
+volumes:
+  postgres_staging_data:
+    driver: local
+  redis_staging_data:
+    driver: local
+
+networks:
+  study_partner_staging_network:
+    driver: bridge
