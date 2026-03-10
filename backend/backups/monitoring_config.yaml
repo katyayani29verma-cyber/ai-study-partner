@@ -1,0 +1,468 @@
+# Monitoring Configuration for AI Study Partner Backend Backups
+# 
+# This file defines monitoring and alerting rules for backup operations.
+# Supports CloudWatch, Datadog, Prometheus, and custom monitoring.
+
+# ============================================================================
+# GENERAL CONFIGURATION
+# ============================================================================
+
+monitoring:
+  enabled: true
+  environment: production
+  service_name: ai-study-partner-backups
+  
+  # Monitoring backends to enable
+  backends:
+    - cloudwatch
+    - datadog
+    - prometheus
+    - custom_alerts
+
+# ============================================================================
+# CLOUDWATCH CONFIGURATION
+# ============================================================================
+
+cloudwatch:
+  enabled: true
+  region: us-east-1
+  namespace: AIStudyPartner/Backups
+  
+  # CloudWatch alarms
+  alarms:
+    - name: BackupFailure
+      metric: BackupStatus
+      statistic: Sum
+      period: 300
+      threshold: 1
+      comparison_operator: GreaterThanOrEqualToThreshold
+      alarm_actions:
+        - arn:aws:sns:us-east-1:123456789012:backup-alerts
+      
+    - name: BackupDurationHigh
+      metric: BackupDuration
+      statistic: Average
+      period: 300
+      threshold: 3600  # 1 hour in seconds
+      comparison_operator: GreaterThanThreshold
+      alarm_actions:
+        - arn:aws:sns:us-east-1:123456789012:backup-alerts
+      
+    - name: BackupSizeHigh
+      metric: BackupSize
+      statistic: Maximum
+      period: 300
+      threshold: 2147483648  # 2GB in bytes
+      comparison_operator: GreaterThanThreshold
+      alarm_actions:
+        - arn:aws:sns:us-east-1:123456789012:backup-alerts
+      
+    - name: StorageUsageHigh
+      metric: StorageUsage
+      statistic: Average
+      period: 300
+      threshold: 80  # 80% in percentage
+      comparison_operator: GreaterThanThreshold
+      alarm_actions:
+        - arn:aws:sns:us-east-1:123456789012:backup-alerts
+      
+    - name: RestoreTestFailure
+      metric: RestoreTestStatus
+      statistic: Sum
+      period: 300
+      threshold: 1
+      comparison_operator: GreaterThanOrEqualToThreshold
+      alarm_actions:
+        - arn:aws:sns:us-east-1:123456789012:backup-alerts
+      
+    - name: VerificationFailure
+      metric: VerificationStatus
+      statistic: Sum
+      period: 300
+      threshold: 1
+      comparison_operator: GreaterThanOrEqualToThreshold
+      alarm_actions:
+        - arn:aws:sns:us-east-1:123456789012:backup-alerts
+
+# ============================================================================
+# DATADOG CONFIGURATION
+# ============================================================================
+
+datadog:
+  enabled: true
+  api_key: ${DATADOG_API_KEY}
+  app_key: ${DATADOG_APP_KEY}
+  site: datadoghq.com
+  
+  # Datadog monitors
+  monitors:
+    - name: Backup Failure Alert
+      type: metric alert
+      query: avg:ai_study_partner.backup.status{*} > 0
+      alert_message: "Backup failed for AI Study Partner"
+      priority: P1
+      
+    - name: Backup Duration Alert
+      type: metric alert
+      query: avg:ai_study_partner.backup.duration{*} > 3600
+      alert_message: "Backup duration exceeded 1 hour"
+      priority: P2
+      
+    - name: Storage Usage Alert
+      type: metric alert
+      query: avg:ai_study_partner.backup.storage_usage{*} > 80
+      alert_message: "Backup storage usage exceeded 80%"
+      priority: P2
+      
+    - name: Restore Test Failure
+      type: metric alert
+      query: avg:ai_study_partner.backup.restore_test_status{*} > 0
+      alert_message: "Restore test failed"
+      priority: P1
+      
+    - name: Verification Failure
+      type: metric alert
+      query: avg:ai_study_partner.backup.verification_status{*} > 0
+      alert_message: "Backup verification failed"
+      priority: P1
+  
+  # Datadog dashboards
+  dashboards:
+    - name: Backup Status Dashboard
+      widgets:
+        - type: timeseries
+          metric: ai_study_partner.backup.status
+          title: Backup Status
+        
+        - type: timeseries
+          metric: ai_study_partner.backup.duration
+          title: Backup Duration
+        
+        - type: gauge
+          metric: ai_study_partner.backup.storage_usage
+          title: Storage Usage
+        
+        - type: timeseries
+          metric: ai_study_partner.backup.size
+          title: Backup Size
+
+# ============================================================================
+# PROMETHEUS CONFIGURATION
+# ============================================================================
+
+prometheus:
+  enabled: true
+  scrape_interval: 60s
+  evaluation_interval: 60s
+  
+  # Prometheus scrape configs
+  scrape_configs:
+    - job_name: ai-study-partner-backups
+      static_configs:
+        - targets: ['localhost:9090']
+      metrics_path: /metrics
+  
+  # Prometheus alert rules
+  alert_rules:
+    - alert: BackupFailure
+      expr: ai_study_partner_backup_status > 0
+      for: 5m
+      annotations:
+        summary: "Backup failed for AI Study Partner"
+        severity: critical
+    
+    - alert: BackupDurationHigh
+      expr: ai_study_partner_backup_duration_seconds > 3600
+      for: 5m
+      annotations:
+        summary: "Backup duration exceeded 1 hour"
+        severity: warning
+    
+    - alert: StorageUsageHigh
+      expr: ai_study_partner_backup_storage_usage_percent > 80
+      for: 5m
+      annotations:
+        summary: "Backup storage usage exceeded 80%"
+        severity: warning
+    
+    - alert: RestoreTestFailure
+      expr: ai_study_partner_backup_restore_test_status > 0
+      for: 5m
+      annotations:
+        summary: "Restore test failed"
+        severity: critical
+    
+    - alert: VerificationFailure
+      expr: ai_study_partner_backup_verification_status > 0
+      for: 5m
+      annotations:
+        summary: "Backup verification failed"
+        severity: critical
+
+# ============================================================================
+# CUSTOM ALERTS
+# ============================================================================
+
+custom_alerts:
+  enabled: true
+  
+  # Email alerts
+  email:
+    enabled: true
+    smtp_server: smtp.gmail.com
+    smtp_port: 587
+    from_address: backups@ai-study-partner.com
+    recipients:
+      - dba@ai-study-partner.com
+      - ops@ai-study-partner.com
+    
+    alerts:
+      - event: backup_failure
+        subject: "ALERT: Backup Failed"
+        template: backup_failure_email.html
+      
+      - event: restore_test_failure
+        subject: "ALERT: Restore Test Failed"
+        template: restore_test_failure_email.html
+      
+      - event: verification_failure
+        subject: "ALERT: Backup Verification Failed"
+        template: verification_failure_email.html
+      
+      - event: storage_full
+        subject: "ALERT: Backup Storage Full"
+        template: storage_full_email.html
+  
+  # Slack alerts
+  slack:
+    enabled: true
+    webhook_url: ${SLACK_WEBHOOK_URL}
+    channel: "#backup-alerts"
+    
+    alerts:
+      - event: backup_failure
+        color: danger
+        message: "🚨 Backup failed for AI Study Partner"
+      
+      - event: restore_test_failure
+        color: danger
+        message: "🚨 Restore test failed"
+      
+      - event: verification_failure
+        color: danger
+        message: "🚨 Backup verification failed"
+      
+      - event: storage_full
+        color: warning
+        message: "⚠️ Backup storage usage exceeded 80%"
+  
+  # PagerDuty alerts
+  pagerduty:
+    enabled: true
+    integration_key: ${PAGERDUTY_INTEGRATION_KEY}
+    
+    alerts:
+      - event: backup_failure
+        severity: critical
+        description: "Backup failed for AI Study Partner"
+      
+      - event: restore_test_failure
+        severity: critical
+        description: "Restore test failed"
+      
+      - event: verification_failure
+        severity: critical
+        description: "Backup verification failed"
+
+# ============================================================================
+# METRICS CONFIGURATION
+# ============================================================================
+
+metrics:
+  # Backup metrics
+  backup_metrics:
+    - name: backup_status
+      type: gauge
+      description: "Backup status (0=success, 1=failure)"
+      labels:
+        - backup_type
+        - database
+    
+    - name: backup_duration_seconds
+      type: histogram
+      description: "Backup duration in seconds"
+      labels:
+        - backup_type
+        - database
+    
+    - name: backup_size_bytes
+      type: gauge
+      description: "Backup size in bytes"
+      labels:
+        - backup_type
+        - database
+    
+    - name: backup_count
+      type: counter
+      description: "Total number of backups"
+      labels:
+        - backup_type
+        - status
+  
+  # Storage metrics
+  storage_metrics:
+    - name: storage_usage_bytes
+      type: gauge
+      description: "Storage usage in bytes"
+      labels:
+        - backup_type
+    
+    - name: storage_usage_percent
+      type: gauge
+      description: "Storage usage percentage"
+      labels:
+        - backup_type
+    
+    - name: storage_available_bytes
+      type: gauge
+      description: "Available storage in bytes"
+  
+  # Restore metrics
+  restore_metrics:
+    - name: restore_test_status
+      type: gauge
+      description: "Restore test status (0=success, 1=failure)"
+      labels:
+        - backup_type
+    
+    - name: restore_duration_seconds
+      type: histogram
+      description: "Restore duration in seconds"
+      labels:
+        - backup_type
+    
+    - name: restore_count
+      type: counter
+      description: "Total number of restores"
+      labels:
+        - backup_type
+        - status
+  
+  # Verification metrics
+  verification_metrics:
+    - name: verification_status
+      type: gauge
+      description: "Verification status (0=success, 1=failure)"
+      labels:
+        - backup_type
+    
+    - name: verification_duration_seconds
+      type: histogram
+      description: "Verification duration in seconds"
+      labels:
+        - backup_type
+    
+    - name: verification_count
+      type: counter
+      description: "Total number of verifications"
+      labels:
+        - backup_type
+        - status
+
+# ============================================================================
+# ALERTING THRESHOLDS
+# ============================================================================
+
+thresholds:
+  # Backup thresholds
+  backup:
+    max_duration_seconds: 3600  # 1 hour
+    max_size_bytes: 2147483648  # 2GB
+    min_success_rate: 0.99  # 99%
+  
+  # Storage thresholds
+  storage:
+    warning_percent: 70
+    critical_percent: 80
+    max_usage_bytes: 107374182400  # 100GB
+  
+  # Restore thresholds
+  restore:
+    max_duration_seconds: 900  # 15 minutes
+    min_success_rate: 0.99  # 99%
+  
+  # Verification thresholds
+  verification:
+    max_duration_seconds: 600  # 10 minutes
+    min_success_rate: 1.0  # 100%
+
+# ============================================================================
+# REPORTING
+# ============================================================================
+
+reporting:
+  enabled: true
+  
+  # Daily backup report
+  daily_report:
+    enabled: true
+    schedule: "0 8 * * *"  # 8 AM daily
+    recipients:
+      - dba@ai-study-partner.com
+      - ops@ai-study-partner.com
+    format: html
+    
+  # Weekly backup summary
+  weekly_summary:
+    enabled: true
+    schedule: "0 9 * * 1"  # 9 AM Monday
+    recipients:
+      - dba@ai-study-partner.com
+      - ops@ai-study-partner.com
+      - manager@ai-study-partner.com
+    format: html
+    
+  # Monthly backup report
+  monthly_report:
+    enabled: true
+    schedule: "0 10 1 * *"  # 10 AM first day of month
+    recipients:
+      - dba@ai-study-partner.com
+      - ops@ai-study-partner.com
+      - manager@ai-study-partner.com
+      - executive@ai-study-partner.com
+    format: pdf
+
+# ============================================================================
+# RETENTION POLICIES
+# ============================================================================
+
+retention:
+  # Metrics retention
+  metrics:
+    raw_metrics: 7d  # 7 days
+    aggregated_metrics: 30d  # 30 days
+    
+  # Logs retention
+  logs:
+    backup_logs: 90d  # 90 days
+    restore_logs: 90d  # 90 days
+    verification_logs: 90d  # 90 days
+    
+  # Alerts retention
+  alerts:
+    alert_history: 90d  # 90 days
+    alert_logs: 90d  # 90 days
+
+# ============================================================================
+# NOTES
+# ============================================================================
+#
+# 1. Update API keys and webhook URLs with actual values
+# 2. Adjust thresholds based on your environment
+# 3. Configure email SMTP settings for email alerts
+# 4. Test alerts before deploying to production
+# 5. Monitor alert fatigue and adjust thresholds accordingly
+# 6. Review and update monitoring configuration quarterly
+#
+# ============================================================================
