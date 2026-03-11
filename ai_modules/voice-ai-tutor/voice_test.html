@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>AI Study Partner</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#e8f2f8;
+padding:30px;
+}
+
+.container{
+background:white;
+padding:30px;
+border-radius:10px;
+max-width:900px;
+margin:auto;
+}
+
+h1{
+text-align:center;
+}
+
+textarea{
+width:100%;
+height:120px;
+margin-top:10px;
+}
+
+button{
+padding:10px 20px;
+margin-top:10px;
+background:#f4b400;
+border:none;
+border-radius:5px;
+cursor:pointer;
+}
+
+.result{
+background:#f3f3f3;
+padding:15px;
+margin-top:10px;
+white-space:pre-wrap;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🎓 AI Study Partner</h1>
+
+<hr>
+
+<h2>Upload Syllabus PDF</h2>
+
+<input type="file" id="pdfFile">
+
+<br>
+
+<button onclick="uploadPDF()">Upload PDF</button>
+
+<div class="result" id="upload_result"></div>
+
+<hr>
+
+<h2>Voice / Text Explanation</h2>
+
+<input type="text" id="topic" placeholder="Topic (example: loops)" style="width:100%">
+
+<textarea id="transcript" placeholder="Explain the concept here"></textarea>
+
+<br><br>
+
+<button onclick="startVoice()" style="
+background:#ffb300;
+border:none;
+padding:10px 20px;
+font-size:16px;
+border-radius:6px;
+cursor:pointer;">
+🎤 Start Speaking
+</button>
+
+<button onclick="analyze()">Submit Explanation</button>
+
+<div class="result" id="analysis_result"></div>
+
+<hr>
+
+<h2>Socratic Follow-up Question</h2>
+
+<button onclick="askFollowup()">Generate Follow-up Question</button>
+
+<div class="result" id="followup_result"></div>
+
+<hr>
+
+<h2>Flashcard Generator</h2>
+
+<textarea id="flash_text" placeholder="Paste notes here"></textarea>
+
+<button onclick="generateFlashcards()">Generate Flashcards</button>
+
+<div class="result" id="flashcard_result"></div>
+
+</div>
+
+<script>
+
+const API="http://127.0.0.1:8000"
+
+async function uploadPDF(){
+
+let file=document.getElementById("pdfFile").files[0]
+
+let formData=new FormData()
+
+formData.append("file",file)
+
+let res=await fetch(API+"/upload_syllabus",{
+
+method:"POST",
+
+body:formData
+
+})
+
+let data=await res.json()
+
+document.getElementById("upload_result").innerText=
+JSON.stringify(data,null,2)
+
+}
+
+async function analyze(){
+
+let topic=document.getElementById("topic").value
+
+let transcript=document.getElementById("transcript").value
+
+let res=await fetch(API+"/analyze",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+topic:topic,
+transcript:transcript
+})
+
+})
+
+let data=await res.json()
+
+document.getElementById("analysis_result").innerText=
+JSON.stringify(data,null,2)
+
+}
+
+async function askFollowup(){
+
+let topic=document.getElementById("topic").value
+
+let transcript=document.getElementById("transcript").value
+
+let res=await fetch(API+"/socratic_followup",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+topic:topic,
+transcript:transcript
+})
+
+})
+
+let data=await res.json()
+
+document.getElementById("followup_result").innerText=
+JSON.stringify(data,null,2)
+
+}
+
+async function generateFlashcards(){
+
+let text=document.getElementById("flash_text").value
+
+let res=await fetch(API+"/generate_flashcards",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+text:text
+})
+
+})
+
+let data=await res.json()
+
+document.getElementById("flashcard_result").innerText=
+JSON.stringify(data,null,2)
+
+}
+
+</script>
+<script>
+function startVoice() {
+
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+
+    recognition.onresult = function(event) {
+
+        const speech = event.results[0][0].transcript;
+
+        document.getElementById("transcript").value = speech;
+
+    };
+
+    recognition.start();
+}
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+<h2>Flashcard Generator</h2>
+
+<textarea id="notes" rows="6" cols="60"></textarea>
+<br><br>
+
+<button onclick="generate()">Generate Flashcards</button>
+
+<pre id="output"></pre>
+
+<script>
+async function generate() {
+
+const notes = document.getElementById("notes").value;
+
+const res = await fetch("http://127.0.0.1:8000/generate_flashcards", {
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body: JSON.stringify({text:notes})
+})
+
+const data = await res.json()
+
+document.getElementById("output").textContent =
+JSON.stringify(data,null,2)
+
+}
+</script>
